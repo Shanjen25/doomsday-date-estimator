@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Doomsday Date Estimator</title>
+  <style>
+    :root {
+      --bg: #0f0f13;
+      --card: #1a1a24;
+      --text: #e8e8f0;
+      --muted: #a0a0b8;
+      --accent: #ff5c5c;
+      --accent2: #6c9eff;
+      --border: #2a2a3a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 2rem 1rem;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 0.25rem;
+      color: var(--accent);
+    }
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+    input[type="number"], input[type="range"] {
+      width: 100%;
+      padding: 0.6rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #12121a;
+      color: var(--text);
+      font-size: 1rem;
+    }
+    input[type="range"] {
+      padding: 0;
+      height: 8px;
+    }
+    .result {
+      font-size: 1.15rem;
+      margin-top: 1rem;
+    }
+    .result strong {
+      color: var(--accent2);
+    }
+    .disclaimer {
+      font-size: 0.85rem;
+      color: var(--muted);
+      border-left: 3px solid var(--accent);
+      padding-left: 1rem;
+      margin: 1.5rem 0;
+    }
+    .presets button {
+      background: #252535;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.5rem 0.9rem;
+      border-radius: 8px;
+      margin: 0.25rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .presets button:hover {
+      background: #303045;
+    }
+    footer {
+      margin-top: 2rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-align: center;
+    }
+    a { color: var(--accent2); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Doomsday Date Estimator</h1>
+    <p class="subtitle">Toy probabilistic model · Not a prediction</p>
+
+    <div class="disclaimer">
+      <strong>Important:</strong> This is an educational toy using a constant annual hazard rate.
+      Expert estimates vary widely and the future is not fixed. Humanity can (and should) work to lower these risks.
+      See the <a href="https://github.com/Shanjen25/doomsday-date-estimator" target="_blank">GitHub repo</a> for sources and the Python version.
+    </div>
+
+    <div class="card">
+      <label for="p">Annual probability of catastrophe (p)</label>
+      <input type="number" id="p" value="0.003" min="0.0000001" max="0.5" step="0.0001">
+      <input type="range" id="slider" min="0.0001" max="0.05" step="0.0001" value="0.003">
+      <p style="color:var(--muted);font-size:0.9rem;margin-top:0.5rem">
+        Current value: <span id="pDisplay">0.30%</span> per year
+      </p>
+
+      <div class="presets" style="margin-top:1rem">
+        <button onclick="setP(0.0025)">Nuclear ~0.25%/yr</button>
+        <button onclick="setP(0.01)">Higher nuclear ~1%/yr</button>
+        <button onclick="setP(0.003)">Combined illustrative</button>
+        <button onclick="setP(1/14000)">Natural upper bound</button>
+        <button onclick="setP(1/87000)">Natural typical bound</button>
+      </div>
+
+      <div class="result" id="output">
+        <!-- filled by JS -->
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0">How it works</h3>
+      <p>Assuming a constant annual probability <em>p</em> of a civilization-ending (or near-ending) event:</p>
+      <ul>
+        <li><strong>Expected waiting time</strong> = 1 / p years</li>
+        <li><strong>Median date</strong> (50% cumulative chance) = ln(2) / p years from now</li>
+      </ul>
+      <p style="color:var(--muted);font-size:0.9rem">
+        Nuclear risk currently dominates most expert assessments compared with purely natural risks
+        (asteroids, supervolcanoes, etc.). Numbers are drawn from public surveys and papers
+        (Forecasting Research Institute, 80,000 Hours, Snyder-Beattie et al., etc.).
+      </p>
+    </div>
+
+    <footer>
+      Built for discussion · <a href="https://github.com/Shanjen25/doomsday-date-estimator">Source on GitHub</a>
+    </footer>
+  </div>
+
+  <script>
+    const currentYear = new Date().getFullYear();
+
+    function update() {
+      let p = parseFloat(document.getElementById('p').value);
+      if (isNaN(p) || p <= 0 || p >= 1) {
+        document.getElementById('output').innerHTML = '<span style="color:var(--accent)">Enter a probability between 0 and 1</span>';
+        return;
+      }
+
+      document.getElementById('pDisplay').textContent = (p * 100).toFixed(4) + '%';
+      document.getElementById('slider').value = Math.min(Math.max(p, 0.0001), 0.05);
+
+      const expected = 1 / p;
+      const median = Math.log(2) / p;
+
+      document.getElementById('output').innerHTML = `
+        <p><strong>Expected waiting time:</strong> ${expected.toFixed(1)} years → around <strong>${(currentYear + expected).toFixed(0)}</strong></p>
+        <p><strong>Median (50% chance by):</strong> ${median.toFixed(1)} years → around <strong>${(currentYear + median).toFixed(0)}</strong></p>
+        <p style="font-size:0.9rem;color:var(--muted)">
+          (If the annual rate stays constant and independent each year.)
+        </p>
+      `;
+    }
+
+    function setP(val) {
+      document.getElementById('p').value = val;
+      update();
+    }
+
+    document.getElementById('p').addEventListener('input', update);
+    document.getElementById('slider').addEventListener('input', (e) => {
+      document.getElementById('p').value = e.target.value;
+      update();
+    });
+
+    update();
+  </script>
+</body>
+</html>
